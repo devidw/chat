@@ -38,13 +38,36 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadMessages(BuildContext context, int chatId) async {
     final globalStore = Provider.of<GlobalStore>(context, listen: false);
     final messages = await DATA.listMessagesByChat(chatId: chatId);
-    globalStore.setMessages(messages
+    final mappedMessages = messages
         .map((m) => Msg(
               id: m["id"],
               role: m['role'] == 'user' ? MsgRole.user : MsgRole.assistant,
               content: m['content'],
+              key: GlobalKey(),
             ))
-        .toList());
+        .toList();
+    globalStore.setMessages(mappedMessages);
+
+    if (mappedMessages.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        // Find last user message
+        Msg? lastUserMsg;
+        for (var i = mappedMessages.length - 1; i >= 0; i--) {
+          if (mappedMessages[i].role == MsgRole.user) {
+            lastUserMsg = mappedMessages[i];
+            break;
+          }
+        }
+
+        if (lastUserMsg?.key?.currentContext != null) {
+          Scrollable.ensureVisible(
+            lastUserMsg!.key!.currentContext!,
+            alignment: 0,
+            duration: const Duration(milliseconds: 300),
+          );
+        }
+      });
+    }
   }
 
   void _showPicker(BuildContext context) {
@@ -65,7 +88,6 @@ class _HomeScreenState extends State<HomeScreen> {
             );
 
             _loadMessages(context, chat['id']);
-
             _msgFocusNode.requestFocus();
           }
         },
