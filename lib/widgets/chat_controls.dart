@@ -35,23 +35,33 @@ class ChatControls extends StatelessWidget {
 
     // Get last user message before removing
     String? lastUserMessage;
-    if (globalStore.messages.length >= 2) {
+    final lastMsg = globalStore.messages.last;
+
+    if (lastMsg.role.name == 'assistant' && globalStore.messages.length >= 2) {
+      // If last message is from bot, get the user message before it
       lastUserMessage =
           globalStore.messages[globalStore.messages.length - 2].content;
-    }
 
-    // Remove last two messages from store and database
-    if (globalStore.messages.length >= 2) {
-      // Delete from database
-      await DATA.deleteMessage(id: globalStore.messages.last.id);
+      // Delete both messages from database
+      await DATA.deleteMessage(id: lastMsg.id);
       await DATA.deleteMessage(
           id: globalStore.messages[globalStore.messages.length - 2].id);
 
-      // Remove from store
+      // Remove both from store
       globalStore.messages.removeRange(
           globalStore.messages.length - 2, globalStore.messages.length);
-      globalStore.setMessages(globalStore.messages); // Update state
+    } else if (lastMsg.role.name == 'user') {
+      // If last message is from user, just get and remove that
+      lastUserMessage = lastMsg.content;
+
+      // Delete from database
+      await DATA.deleteMessage(id: lastMsg.id);
+
+      // Remove from store
+      globalStore.messages.removeLast();
     }
+
+    globalStore.setMessages(globalStore.messages); // Update state
 
     // Set controller text to last user message and request focus
     if (lastUserMessage != null) {
@@ -63,60 +73,90 @@ class ChatControls extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final globalStore = Provider.of<GlobalStore>(context);
-    final models = [
-      "o3-mini",
-      "o1-mini",
-      'gpt-4o-mini',
-    ];
 
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          DropdownButton<String>(
-            isDense: true,
-            underline: Container(),
-            value: globalStore.model,
-            items: models.map((String model) {
-              return DropdownMenuItem<String>(
-                value: model,
+          Row(
+            children: [
+              // Host selector
+              Container(
+                constraints: const BoxConstraints(minWidth: 100),
+                child: DropdownButton<String>(
+                  isDense: true,
+                  underline: Container(),
+                  value: globalStore.hostKey,
+                  items: GlobalStore.hosts.keys.map((String host) {
+                    return DropdownMenuItem<String>(
+                      value: host,
+                      child: Text(
+                        host,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: MyColors.txt.withOpacity(0.8),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (String? newHost) {
+                    if (newHost != null) {
+                      globalStore.setHost(newHost);
+                    }
+                  },
+                ),
+              ),
+              const SizedBox(width: 10),
+              // Model selector
+              DropdownButton<String>(
+                isDense: true,
+                underline: Container(),
+                value: globalStore.model,
+                items: globalStore.availableModels.map((String model) {
+                  return DropdownMenuItem<String>(
+                    value: model,
+                    child: Text(
+                      model,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: MyColors.txt.withOpacity(0.8),
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  if (newValue != null) {
+                    globalStore.setModel(newValue);
+                  }
+                },
+              ),
+            ],
+          ),
+          Row(
+            children: [
+              TextButton(
+                onPressed: () => _redoLast(context),
                 child: Text(
-                  model,
+                  'Redo Last',
                   style: TextStyle(
                     fontSize: 12,
                     color: MyColors.txt.withOpacity(0.8),
                   ),
                 ),
-              );
-            }).toList(),
-            onChanged: (String? newValue) {
-              if (newValue != null) {
-                globalStore.setModel(newValue);
-              }
-            },
-          ),
-          const SizedBox(width: 20),
-          TextButton(
-            onPressed: () => _redoLast(context),
-            child: Text(
-              'Redo Last',
-              style: TextStyle(
-                fontSize: 12,
-                color: MyColors.txt.withOpacity(0.8),
               ),
-            ),
-          ),
-          const SizedBox(width: 20),
-          TextButton(
-            onPressed: () => _clearChatHistory(context),
-            child: Text(
-              'Clear Chat',
-              style: TextStyle(
-                fontSize: 12,
-                color: MyColors.txt.withOpacity(0.8),
+              const SizedBox(width: 20),
+              TextButton(
+                onPressed: () => _clearChatHistory(context),
+                child: Text(
+                  'Clear Chat',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: MyColors.txt.withOpacity(0.8),
+                  ),
+                ),
               ),
-            ),
+            ],
           ),
         ],
       ),

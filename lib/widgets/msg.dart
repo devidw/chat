@@ -23,7 +23,7 @@ class _MsgWidgetState extends State<MsgWidget> {
       key: widget.msg.key,
       mainAxisAlignment: widget.msg.role == MsgRole.user
           ? MainAxisAlignment.end
-          : MainAxisAlignment.start,
+          : MainAxisAlignment.center,
       children: [
         Container(
           constraints: BoxConstraints(maxWidth: 600),

@@ -27,14 +27,8 @@ void showErrorSnackBar(BuildContext context, String message) {
         borderRadius: BorderRadius.circular(8),
       ),
       margin: EdgeInsets.all(8),
-      duration: Duration(seconds: 4),
-      action: SnackBarAction(
-        label: 'Dismiss',
-        textColor: Colors.white,
-        onPressed: () {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-        },
-      ),
+      duration: Duration(days: 1),
+      showCloseIcon: true,
     ),
   );
 }

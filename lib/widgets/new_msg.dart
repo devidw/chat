@@ -25,7 +25,6 @@ class NewMsgWidget extends StatefulWidget {
 class _NewMsgWidgetState extends State<NewMsgWidget> {
   final AIService _aiService = AIService();
   bool _textFieldHasFocus = false;
-  Status status = Status.idle;
 
   @override
   void initState() {
@@ -62,9 +61,7 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
       content: content,
     );
 
-    setState(() {
-      globalStore.addMessage(userMsg);
-    });
+    globalStore.addMessage(userMsg);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (userMsg.key?.currentContext != null) {
@@ -76,49 +73,49 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
       }
     });
 
-    var botMsg = Msg(
-      id: userMsgId + 1, // TODO: do better
-      role: MsgRole.assistant,
-      content: "",
-    );
-
-    setState(() {
-      status = Status.busy;
-      globalStore.addMessage(botMsg);
-    });
-
     String fullResponse = '';
 
     try {
       var stream = _aiService.generateText(
+        hostUrl: globalStore.hostUrl,
+        apiKey: globalStore.apiKey,
         model: globalStore.model,
         messages: globalStore.messages,
       );
 
+      var botMsg = Msg(
+        id: userMsgId + 1, // TODO: do better
+        role: MsgRole.assistant,
+        content: "",
+      );
+
+      var firstDone = false;
+
       await for (final chunk in stream) {
         fullResponse += chunk;
+
+        if (!firstDone) {
+          firstDone = true;
+          globalStore.addMessage(botMsg);
+        }
+
         globalStore.updateLastBotMsg(fullResponse);
       }
     } catch (e) {
       showErrorSnackBar(
           context, 'Failed to generate response: ${e.toString()}');
       setState(() {
-        status = Status.idle;
         globalStore.messages.removeLast(); // Remove the empty bot message
       });
       return;
     }
 
     await DATA.createMessage(
-      role: botMsg.role.name,
+      role: MsgRole.assistant.name,
       content: fullResponse,
       chatId: globalStore.currentChatId!,
       model: globalStore.model,
     );
-
-    setState(() {
-      status = Status.idle;
-    });
   }
 
   bool _handleKeyPress(KeyEvent event) {
