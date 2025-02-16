@@ -4,28 +4,21 @@ import 'dart:io';
 
 class DATA {
   static late Database db;
+  static final String dbPath = Platform.environment['CHAT_DB_PATH'] ??
+      (throw Exception('CHAT_DB_PATH environment variable not set'));
 
   static Future<void> init() async {
-    final databasesPath = await getDatabasesPath();
-    final path = join(databasesPath, 'my_database.db');
-
     DATA.db = await openDatabase(
-      path,
+      dbPath,
       version: 1,
       onCreate: (db, version) async {
-        await db.execute('''
-          CREATE TABLE projects (
-              id INTEGER PRIMARY KEY AUTOINCREMENT,
-              name TEXT NOT NULL
-          )''');
-
         await db.execute('''
           CREATE TABLE chats (
               id INTEGER PRIMARY KEY AUTOINCREMENT,
               name TEXT NOT NULL,
-              project_id INTEGER NOT NULL,
+              parent_id INTEGER,
               model TEXT,
-              FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+              FOREIGN KEY (parent_id) REFERENCES chats (id) ON DELETE CASCADE
           )''');
 
         await db.execute('''
@@ -42,40 +35,32 @@ class DATA {
     );
   }
 
-  // **project apis**
-  static Future<List<Map<String, dynamic>>> listProjects() async {
-    return await db.query('projects');
-  }
-
-  static Future<int> createProject({String name = 'untitled project'}) async {
-    return await db.insert('projects', {'name': name});
-  }
-
-  static Future<int> updateProject(
-      {required int id, required String name}) async {
-    return await db.update('projects', {'name': name},
-        where: 'id = ?', whereArgs: [id]);
-  }
-
-  static Future<int> deleteProject({required int id}) async {
-    return await db.delete('projects', where: 'id = ?', whereArgs: [id]);
-  }
-
   // **chat apis**
-  static Future<List<Map<String, dynamic>>> listChatsByProject(
-      {required int projectId}) async {
-    return await db
-        .query('chats', where: 'project_id = ?', whereArgs: [projectId]);
+  static Future<List<Map<String, dynamic>>> listChats({int? parentId}) async {
+    return await db.query(
+      'chats',
+      where: parentId == null ? 'parent_id IS NULL' : 'parent_id = ?',
+      whereArgs: parentId == null ? [] : [parentId],
+    );
   }
 
-  static Future<int> createChat(
-      {required int projectId, String name = 'untitled chat'}) async {
-    return await db.insert('chats', {'name': name, 'project_id': projectId});
+  static Future<int> createChat({
+    String name = 'untitled chat',
+    int? parentId,
+  }) async {
+    return await db.insert('chats', {
+      'name': name,
+      'parent_id': parentId,
+    });
   }
 
-  static Future<int> updateChat({required int id, required String name}) async {
-    return await db.update('chats', {'name': name},
-        where: 'id = ?', whereArgs: [id]);
+  static Future<int> updateChat({
+    required int id,
+    String? name,
+  }) async {
+    final Map<String, dynamic> updates = {};
+    if (name != null) updates['name'] = name;
+    return await db.update('chats', updates, where: 'id = ?', whereArgs: [id]);
   }
 
   static Future<int> deleteChat({required int id}) async {

@@ -6,8 +6,7 @@ import '../styles.dart';
 import '../global_store.dart';
 
 class PickerDialog extends StatefulWidget {
-  final Function(Map<String, dynamic> project, Map<String, dynamic>? chat)
-      onSelection;
+  final Function(Map<String, dynamic> chat) onSelection;
   final bool showDebugInfo;
 
   const PickerDialog({
@@ -21,11 +20,11 @@ class PickerDialog extends StatefulWidget {
 }
 
 class _PickerDialogState extends State<PickerDialog> {
-  List<Map<String, dynamic>> _projects = [];
-  List<Map<String, dynamic>> _chats = [];
-  int _selectedProjectIndex = 0;
-  int _selectedChatIndex = 0;
-  bool _isChatTab = false;
+  List<Map<String, dynamic>> _parentChats = [];
+  List<Map<String, dynamic>> _childChats = [];
+  int _selectedParentIndex = 0;
+  int _selectedChildIndex = 0;
+  bool _isChildView = false;
   bool _isRenaming = false;
   bool _showDeleteConfirm = false;
   final TextEditingController _renameController = TextEditingController();
@@ -34,14 +33,57 @@ class _PickerDialogState extends State<PickerDialog> {
   @override
   void initState() {
     super.initState();
-    _loadProjects();
-    final globalStore = Provider.of<GlobalStore>(context, listen: false);
-    _isChatTab = globalStore.currentChatId != null;
-    if (_isChatTab) {
-      _loadChats(globalStore.currentProjectId!);
-    }
-
+    _initializeChats();
     ServicesBinding.instance.keyboard.addHandler(_handleKeyPress);
+  }
+
+  Future<void> _initializeChats() async {
+    final globalStore = Provider.of<GlobalStore>(context, listen: false);
+    final currentChatId = globalStore.currentChatId;
+
+    // First load all parent chats
+    final parentChats = await DATA.listChats();
+    setState(() {
+      _parentChats = parentChats;
+    });
+
+    if (currentChatId != null) {
+      // Find if current chat is a parent
+      final parentIndex =
+          parentChats.indexWhere((p) => p['id'] == currentChatId);
+
+      if (parentIndex >= 0) {
+        // Current chat is a parent
+        setState(() {
+          _selectedParentIndex = parentIndex;
+          _isChildView = false;
+        });
+      } else {
+        // Current chat might be a child, need to find its parent
+        for (var i = 0; i < parentChats.length; i++) {
+          final childChats =
+              await DATA.listChats(parentId: parentChats[i]['id']);
+          final childIndex =
+              childChats.indexWhere((c) => c['id'] == currentChatId);
+
+          if (childIndex >= 0) {
+            setState(() {
+              _selectedParentIndex = i;
+              _childChats = childChats;
+              _selectedChildIndex = childIndex;
+              _isChildView = true;
+            });
+            break;
+          }
+        }
+      }
+    } else if (parentChats.isNotEmpty) {
+      // No current chat, select first parent
+      setState(() {
+        _selectedParentIndex = 0;
+        _isChildView = false;
+      });
+    }
   }
 
   @override
@@ -52,76 +94,68 @@ class _PickerDialogState extends State<PickerDialog> {
     super.dispose();
   }
 
-  Future<void> _loadProjects() async {
-    final projects = await DATA.listProjects();
-    final globalStore = Provider.of<GlobalStore>(context, listen: false);
+  Future<void> _loadParentChats() async {
+    final chats = await DATA.listChats();
     setState(() {
-      _projects = projects;
-      if (projects.isNotEmpty) {
-        if (globalStore.currentProjectId != null) {
-          final index = projects
-              .indexWhere((p) => p['id'] == globalStore.currentProjectId);
-          _selectedProjectIndex = index >= 0 ? index : 0;
-        } else {
-          _selectedProjectIndex = 0;
-        }
+      _parentChats = chats;
+      if (_selectedParentIndex >= chats.length) {
+        _selectedParentIndex = chats.isEmpty ? -1 : 0;
       }
     });
   }
 
-  Future<void> _loadChats(int projectId) async {
-    final chats = await DATA.listChatsByProject(projectId: projectId);
-    final globalStore = Provider.of<GlobalStore>(context, listen: false);
+  Future<void> _loadChildChats(int parentId) async {
+    final chats = await DATA.listChats(parentId: parentId);
     setState(() {
-      _chats = chats;
-      if (chats.isNotEmpty) {
-        if (globalStore.currentChatId != null) {
-          final index =
-              chats.indexWhere((c) => c['id'] == globalStore.currentChatId);
-          _selectedChatIndex = index >= 0 ? index : 0;
-        } else {
-          _selectedChatIndex = 0;
-        }
-      } else {
-        _selectedChatIndex = -1;
-      }
+      _childChats = chats;
+      _selectedChildIndex = chats.isEmpty ? -1 : 0;
     });
   }
 
-  Future<void> _createNewProject() async {
-    final projectId = await DATA.createProject();
-    await _loadProjects();
+  Future<void> _createNewParentChat() async {
+    final chatId = await DATA.createChat();
+    await _loadParentChats();
+    final newChatIndex =
+        _parentChats.indexWhere((chat) => chat['id'] == chatId);
     setState(() {
-      _selectedProjectIndex = _projects.length - 1;
+      _selectedParentIndex = newChatIndex;
       _isRenaming = true;
-      _renameController.text = 'Untitled Project';
+      _renameController.text = 'Untitled Chat';
+      _isChildView = false;
+      _selectedChildIndex = -1;
     });
     _renameFocusNode.requestFocus();
   }
 
-  Future<void> _createNewChat() async {
-    final projectId = _projects[_selectedProjectIndex]['id'];
-    final chatId = await DATA.createChat(projectId: projectId);
-    await _loadChats(projectId);
+  Future<void> _createNewChildChat() async {
+    if (_parentChats.isEmpty || _selectedParentIndex < 0) return;
+
+    final parentId = _parentChats[_selectedParentIndex]['id'];
+    final chatId = await DATA.createChat(parentId: parentId);
+    await _loadChildChats(parentId);
+    final newChatIndex = _childChats.indexWhere((chat) => chat['id'] == chatId);
     setState(() {
-      _selectedChatIndex = _chats.length - 1;
+      _selectedChildIndex = newChatIndex;
       _isRenaming = true;
       _renameController.text = 'Untitled Chat';
+      _isChildView = true;
     });
     _renameFocusNode.requestFocus();
   }
 
   Future<void> _handleRename() async {
-    if (_isChatTab && _selectedChatIndex >= 0) {
-      final chat = _chats[_selectedChatIndex];
+    if (_isChildView && _selectedChildIndex >= 0 && _childChats.isNotEmpty) {
+      final chat = _childChats[_selectedChildIndex];
       _renameController.text = chat['name'];
       setState(() {
         _isRenaming = true;
       });
       _renameFocusNode.requestFocus();
-    } else if (!_isChatTab && _selectedProjectIndex >= 0) {
-      final project = _projects[_selectedProjectIndex];
-      _renameController.text = project['name'];
+    } else if (!_isChildView &&
+        _selectedParentIndex >= 0 &&
+        _parentChats.isNotEmpty) {
+      final chat = _parentChats[_selectedParentIndex];
+      _renameController.text = chat['name'];
       setState(() {
         _isRenaming = true;
       });
@@ -130,37 +164,63 @@ class _PickerDialogState extends State<PickerDialog> {
   }
 
   Future<void> _saveRename() async {
-    if (_isChatTab && _selectedChatIndex >= 0) {
-      final chat = _chats[_selectedChatIndex];
-      await DATA.updateChat(id: chat['id'], name: _renameController.text);
-      final projectId = _projects[_selectedProjectIndex]['id'];
-      final chats = await DATA.listChatsByProject(projectId: projectId);
+    if (_renameController.text.trim().isEmpty) {
       setState(() {
-        _chats = chats;
         _isRenaming = false;
       });
-    } else if (!_isChatTab && _selectedProjectIndex >= 0) {
-      final project = _projects[_selectedProjectIndex];
-      await DATA.updateProject(id: project['id'], name: _renameController.text);
-      final projects = await DATA.listProjects();
+      return;
+    }
+
+    if (_isChildView && _selectedChildIndex >= 0 && _childChats.isNotEmpty) {
+      final chat = _childChats[_selectedChildIndex];
+      final currentChildIndex = _selectedChildIndex;
+      await DATA.updateChat(id: chat['id'], name: _renameController.text);
+      final parentId = _parentChats[_selectedParentIndex]['id'];
+      await _loadChildChats(parentId);
       setState(() {
-        _projects = projects;
-        _isRenaming = false;
+        _selectedChildIndex = currentChildIndex;
+      });
+    } else if (!_isChildView &&
+        _selectedParentIndex >= 0 &&
+        _parentChats.isNotEmpty) {
+      final chat = _parentChats[_selectedParentIndex];
+      await DATA.updateChat(id: chat['id'], name: _renameController.text);
+      final currentIndex = _selectedParentIndex;
+      await _loadParentChats();
+      setState(() {
+        _selectedParentIndex = currentIndex;
       });
     }
+
+    setState(() {
+      _isRenaming = false;
+    });
   }
 
   Future<void> _handleDelete() async {
-    if (_isChatTab && _selectedChatIndex >= 0) {
-      final chat = _chats[_selectedChatIndex];
+    if (_isChildView && _selectedChildIndex >= 0 && _childChats.isNotEmpty) {
+      final chat = _childChats[_selectedChildIndex];
       await DATA.deleteChat(id: chat['id']);
-      await _loadChats(_projects[_selectedProjectIndex]['id']);
-    } else if (!_isChatTab && _selectedProjectIndex >= 0) {
-      final project = _projects[_selectedProjectIndex];
-      await DATA.deleteProject(id: project['id']);
-      await _loadProjects();
+      await _loadChildChats(_parentChats[_selectedParentIndex]['id']);
+
+      Provider.of<GlobalStore>(context, listen: false).removeTab(chat["id"]);
+
       setState(() {
-        _isChatTab = false;
+        _selectedChildIndex = _childChats.isEmpty ? -1 : 0;
+      });
+    } else if (!_isChildView &&
+        _selectedParentIndex >= 0 &&
+        _parentChats.isNotEmpty) {
+      final chat = _parentChats[_selectedParentIndex];
+      await DATA.deleteChat(id: chat['id']);
+      await _loadParentChats();
+
+      Provider.of<GlobalStore>(context, listen: false).removeTab(chat["id"]);
+
+      setState(() {
+        _isChildView = false;
+        _selectedParentIndex = _parentChats.isEmpty ? -1 : 0;
+        _selectedChildIndex = -1;
       });
     }
     setState(() {
@@ -168,18 +228,20 @@ class _PickerDialogState extends State<PickerDialog> {
     });
   }
 
-  void _handleProjectSelection() {
+  void _handleParentSelection() {
     setState(() {
-      _isChatTab = true;
+      _isChildView = true;
+      _childChats = []; // Clear chats while loading
     });
-    _loadChats(_projects[_selectedProjectIndex]['id']);
+    _loadChildChats(_parentChats[_selectedParentIndex]['id']);
   }
 
   void _handleChatSelection() {
-    widget.onSelection(
-      _projects[_selectedProjectIndex],
-      _chats[_selectedChatIndex],
-    );
+    if (_isChildView && _selectedChildIndex >= 0) {
+      widget.onSelection(_childChats[_selectedChildIndex]);
+    } else if (!_isChildView && _selectedParentIndex >= 0) {
+      widget.onSelection(_parentChats[_selectedParentIndex]);
+    }
     Navigator.of(context).pop();
   }
 
@@ -192,11 +254,11 @@ class _PickerDialogState extends State<PickerDialog> {
         return true;
       }
 
-      if (event.logicalKey == LogicalKeyboardKey.arrowUp ||
-          event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      if (event.logicalKey == LogicalKeyboardKey.escape) {
         setState(() {
           _showDeleteConfirm = false;
         });
+        return true;
       }
     }
 
@@ -227,53 +289,74 @@ class _PickerDialogState extends State<PickerDialog> {
 
     if (HardwareKeyboard.instance.isMetaPressed &&
         event.logicalKey == LogicalKeyboardKey.keyA) {
-      if (_isChatTab) {
-        _createNewChat();
+      if (_isChildView) {
+        _createNewChildChat();
       } else {
-        _createNewProject();
+        _createNewParentChat();
       }
       return true;
+    }
+
+    if (_showDeleteConfirm) {
+      return true; // Block navigation when delete confirmation is shown
     }
 
     switch (event.logicalKey) {
       case LogicalKeyboardKey.arrowDown:
         setState(() {
-          if (_isChatTab && _chats.isNotEmpty) {
-            _selectedChatIndex = (_selectedChatIndex + 1) % _chats.length;
-          } else if (!_isChatTab && _projects.isNotEmpty) {
-            _selectedProjectIndex =
-                (_selectedProjectIndex + 1) % _projects.length;
+          if (_isChildView && _childChats.isNotEmpty) {
+            _selectedChildIndex =
+                (_selectedChildIndex + 1) % _childChats.length;
+          } else if (!_isChildView && _parentChats.isNotEmpty) {
+            _selectedParentIndex =
+                (_selectedParentIndex + 1) % _parentChats.length;
+            _selectedChildIndex = -1;
+            _childChats = []; // Clear chats when changing parent
+            if (_isChildView) {
+              _loadChildChats(_parentChats[_selectedParentIndex]
+                  ['id']); // Reload chats if in child view
+            }
           }
         });
         return true;
 
       case LogicalKeyboardKey.arrowUp:
         setState(() {
-          if (_isChatTab && _chats.isNotEmpty) {
-            _selectedChatIndex =
-                (_selectedChatIndex - 1 + _chats.length) % _chats.length;
-          } else if (!_isChatTab && _projects.isNotEmpty) {
-            _selectedProjectIndex =
-                (_selectedProjectIndex - 1 + _projects.length) %
-                    _projects.length;
+          if (_isChildView && _childChats.isNotEmpty) {
+            _selectedChildIndex =
+                (_selectedChildIndex - 1 + _childChats.length) %
+                    _childChats.length;
+          } else if (!_isChildView && _parentChats.isNotEmpty) {
+            _selectedParentIndex =
+                (_selectedParentIndex - 1 + _parentChats.length) %
+                    _parentChats.length;
+            _selectedChildIndex = -1;
+            _childChats = []; // Clear chats when changing parent
+            if (_isChildView) {
+              _loadChildChats(_parentChats[_selectedParentIndex]
+                  ['id']); // Reload chats if in child view
+            }
           }
         });
         return true;
 
       case LogicalKeyboardKey.arrowRight:
-        if (_isChatTab && _selectedChatIndex >= 0) {
-          _handleChatSelection();
-        } else if (!_isChatTab && _selectedProjectIndex >= 0) {
-          _handleProjectSelection();
+        if (!_isChildView && _selectedParentIndex >= 0) {
+          _handleParentSelection();
         }
         return true;
 
       case LogicalKeyboardKey.arrowLeft:
-        if (_isChatTab) {
+        if (_isChildView) {
           setState(() {
-            _isChatTab = false;
+            _isChildView = false;
+            _selectedChildIndex = -1;
           });
         }
+        return true;
+
+      case LogicalKeyboardKey.enter:
+        _handleChatSelection();
         return true;
     }
 
@@ -283,13 +366,13 @@ class _PickerDialogState extends State<PickerDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: MyColors.bg,
+      backgroundColor: Theme.of(context).dialogBackgroundColor,
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(15),
           border: Border.all(
             width: 1.5,
-            color: MyColors.txt.withValues(alpha: 0.25),
+            color: MyColors.dark_txt.withValues(alpha: 0.25),
           ),
         ),
         constraints: BoxConstraints(
@@ -312,128 +395,200 @@ class _PickerDialogState extends State<PickerDialog> {
                     children: [
                       Text('Debug Info:',
                           style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text('View: ${_isChatTab ? "Chats" : "Projects"}'),
-                      if (!_isChatTab &&
-                          _selectedProjectIndex >= 0 &&
-                          _projects.isNotEmpty)
+                      Text(
+                          'View: ${_isChildView ? "Child Chats" : "Parent Chats"}'),
+                      if (!_isChildView &&
+                          _selectedParentIndex >= 0 &&
+                          _parentChats.isNotEmpty)
                         Text(
-                            'Selected Project: ${_projects[_selectedProjectIndex]['name']} (id: ${_projects[_selectedProjectIndex]['id']})'),
-                      if (_isChatTab &&
-                          _selectedProjectIndex >= 0 &&
-                          _projects.isNotEmpty)
+                            'Selected Parent Chat: ${_parentChats[_selectedParentIndex]['name']} (id: ${_parentChats[_selectedParentIndex]['id']})'),
+                      if (_isChildView &&
+                          _selectedParentIndex >= 0 &&
+                          _parentChats.isNotEmpty)
                         Text(
-                            'Selected Project: ${_projects[_selectedProjectIndex]['name']} (id: ${_projects[_selectedProjectIndex]['id']})'),
-                      if (_isChatTab &&
-                          _selectedChatIndex >= 0 &&
-                          _chats.isNotEmpty)
+                            'Selected Parent Chat: ${_parentChats[_selectedParentIndex]['name']} (id: ${_parentChats[_selectedParentIndex]['id']})'),
+                      if (_isChildView &&
+                          _selectedChildIndex >= 0 &&
+                          _childChats.isNotEmpty)
                         Text(
-                            'Selected Chat: ${_chats[_selectedChatIndex]['name']} (id: ${_chats[_selectedChatIndex]['id']})'),
+                            'Selected Child Chat: ${_childChats[_selectedChildIndex]['name']} (id: ${_childChats[_selectedChildIndex]['id']})'),
                     ],
                   ),
                 ),
-              Text.rich(
-                TextSpan(
-                  children: [
-                    if (_isChatTab && _projects.isNotEmpty)
-                      TextSpan(
-                        text: _projects[_selectedProjectIndex]['name'],
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          fontStyle: FontStyle.italic,
-                          color: MyColors.grey,
-                        ),
-                      ),
-                    if (_isChatTab && _projects.isNotEmpty)
-                      TextSpan(
-                        text: "'s Chats",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: MyColors.grey,
-                        ),
-                      )
-                    else
-                      TextSpan(
-                        text: 'Projects',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: MyColors.grey,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
               Expanded(
-                child: _isChatTab && _chats.isEmpty
-                    ? Center(child: Text('No chats available'))
-                    : !_isChatTab && _projects.isEmpty
-                        ? Center(child: Text('No projects available'))
-                        : Column(
-                            children: [
-                              Expanded(
-                                child: ListView.builder(
-                                  itemCount: _isChatTab
-                                      ? _chats.length
-                                      : _projects.length,
-                                  itemBuilder: (context, index) {
-                                    final item = _isChatTab
-                                        ? _chats[index]
-                                        : _projects[index];
-                                    final isSelected = _isChatTab
-                                        ? index == _selectedChatIndex
-                                        : index == _selectedProjectIndex;
-
-                                    if (_isRenaming && isSelected) {
+                child: Row(
+                  children: [
+                    // Left column for parent chats
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: _parentChats.isEmpty
+                                ? Center(child: Text('No chats available'))
+                                : ListView.builder(
+                                    itemCount: _parentChats.length,
+                                    itemBuilder: (context, index) {
+                                      final chat = _parentChats[index];
+                                      final isSelected =
+                                          index == _selectedParentIndex;
                                       return ListTile(
-                                        title: TextField(
-                                          controller: _renameController,
-                                          focusNode: _renameFocusNode,
-                                          style: TextStyle(fontSize: 13),
-                                          decoration: InputDecoration(
-                                            isDense: true,
-                                            border: InputBorder.none,
-                                          ),
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: isSelected &&
+                                                      _isRenaming &&
+                                                      !_isChildView
+                                                  ? TextField(
+                                                      controller:
+                                                          _renameController,
+                                                      focusNode:
+                                                          _renameFocusNode,
+                                                      decoration:
+                                                          InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                      ),
+                                                      style: TextStyle(
+                                                        color:
+                                                            MyColors.dark_txt,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                      onSubmitted: (_) =>
+                                                          _saveRename(),
+                                                      onEditingComplete:
+                                                          _saveRename,
+                                                    )
+                                                  : Text(
+                                                      chat['name'],
+                                                      style: TextStyle(
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : FontWeight.normal,
+                                                        color: isSelected &&
+                                                                _showDeleteConfirm &&
+                                                                !_isChildView
+                                                            ? Colors.red
+                                                            : MyColors.dark_txt,
+                                                      ),
+                                                    ),
+                                            ),
+                                          ],
                                         ),
-                                        tileColor:
-                                            MyColors.a.withValues(alpha: 0.5),
+                                        tileColor: isSelected
+                                            ? (_isChildView
+                                                ? MyColors.a
+                                                    .withValues(alpha: 0.1)
+                                                : _showDeleteConfirm
+                                                    ? Colors.red
+                                                        .withOpacity(0.2)
+                                                    : MyColors.a
+                                                        .withValues(alpha: 0.3))
+                                            : null,
                                         shape: RoundedRectangleBorder(
                                           borderRadius:
                                               BorderRadius.circular(8),
                                         ),
                                         dense: true,
                                       );
-                                    }
-
-                                    return ListTile(
-                                      title: Text(
-                                        item['name'],
-                                        style: TextStyle(
-                                          fontWeight: isSelected
-                                              ? FontWeight.bold
-                                              : FontWeight.normal,
-                                          color: MyColors.txt,
-                                        ),
-                                      ),
-                                      tileColor: isSelected
-                                          ? _showDeleteConfirm
-                                              ? Colors.red
-                                                  .withValues(alpha: 0.3)
-                                              : MyColors.a
-                                                  .withValues(alpha: 0.3)
-                                          : null,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      dense: true,
-                                    );
-                                  },
-                                ),
-                              ),
-                            ],
+                                    },
+                                  ),
                           ),
+                        ],
+                      ),
+                    ),
+                    // Right column for child chats
+                    Expanded(
+                      child: Column(
+                        children: [
+                          Expanded(
+                            child: _childChats.isEmpty
+                                ? Center(
+                                    child: Text(
+                                      _isChildView ? '⌘ A' : '⌘ →',
+                                      style: TextStyle(
+                                        color: Theme.of(context)
+                                            .textTheme
+                                            .bodyMedium
+                                            ?.color
+                                            ?.withValues(alpha: 0.5),
+                                      ),
+                                    ),
+                                  )
+                                : ListView.builder(
+                                    itemCount: _childChats.length,
+                                    itemBuilder: (context, index) {
+                                      final chat = _childChats[index];
+                                      final isSelected =
+                                          index == _selectedChildIndex;
+                                      return ListTile(
+                                        title: Row(
+                                          children: [
+                                            Expanded(
+                                              child: isSelected &&
+                                                      _isRenaming &&
+                                                      _isChildView
+                                                  ? TextField(
+                                                      controller:
+                                                          _renameController,
+                                                      focusNode:
+                                                          _renameFocusNode,
+                                                      decoration:
+                                                          InputDecoration(
+                                                        border:
+                                                            InputBorder.none,
+                                                        contentPadding:
+                                                            EdgeInsets.zero,
+                                                      ),
+                                                      style: TextStyle(
+                                                        color:
+                                                            MyColors.dark_txt,
+                                                        fontWeight:
+                                                            FontWeight.bold,
+                                                      ),
+                                                      onSubmitted: (_) =>
+                                                          _saveRename(),
+                                                      onEditingComplete:
+                                                          _saveRename,
+                                                    )
+                                                  : Text(
+                                                      chat['name'],
+                                                      style: TextStyle(
+                                                        fontWeight: isSelected
+                                                            ? FontWeight.bold
+                                                            : FontWeight.normal,
+                                                        color: isSelected &&
+                                                                _showDeleteConfirm &&
+                                                                _isChildView
+                                                            ? Colors.red
+                                                            : MyColors.dark_txt,
+                                                      ),
+                                                    ),
+                                            ),
+                                          ],
+                                        ),
+                                        tileColor: isSelected
+                                            ? _showDeleteConfirm
+                                                ? Colors.red.withOpacity(0.2)
+                                                : MyColors.a
+                                                    .withValues(alpha: 0.3)
+                                            : null,
+                                        shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(8),
+                                        ),
+                                        dense: true,
+                                      );
+                                    },
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

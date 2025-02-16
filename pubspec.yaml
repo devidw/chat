@@ -95,6 +95,14 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
+  fonts:
+    - family: NotoSerif
+      fonts:
+        - asset: assets/NotoSerif-VariableFont_wdth,wght.ttf
+          style: normal
+        - asset: assets/NotoSerif-Italic-VariableFont_wdth,wght.ttf
+          style: italic
+
 flutter_icons:
   macos:
     generate: true

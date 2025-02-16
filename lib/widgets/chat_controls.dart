@@ -79,59 +79,28 @@ class ChatControls extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            children: [
-              // Host selector
-              Container(
-                constraints: const BoxConstraints(minWidth: 100),
-                child: DropdownButton<String>(
-                  isDense: true,
-                  underline: Container(),
-                  value: globalStore.hostKey,
-                  items: GlobalStore.hosts.keys.map((String host) {
-                    return DropdownMenuItem<String>(
-                      value: host,
-                      child: Text(
-                        host,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: MyColors.txt.withOpacity(0.8),
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                  onChanged: (String? newHost) {
-                    if (newHost != null) {
-                      globalStore.setHost(newHost);
-                    }
-                  },
+          // Model selector
+          DropdownButton<String>(
+            isDense: true,
+            underline: Container(),
+            value: globalStore.model,
+            items: globalStore.availableModels.map((model) {
+              return DropdownMenuItem<String>(
+                value: model['id'],
+                child: Text(
+                  model['name']!,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: MyColors.dark_txt.withOpacity(0.8),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              // Model selector
-              DropdownButton<String>(
-                isDense: true,
-                underline: Container(),
-                value: globalStore.model,
-                items: globalStore.availableModels.map((String model) {
-                  return DropdownMenuItem<String>(
-                    value: model,
-                    child: Text(
-                      model,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: MyColors.txt.withOpacity(0.8),
-                      ),
-                    ),
-                  );
-                }).toList(),
-                onChanged: (String? newValue) {
-                  if (newValue != null) {
-                    globalStore.setModel(newValue);
-                  }
-                },
-              ),
-            ],
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                globalStore.setModel(newValue);
+              }
+            },
           ),
           Row(
             children: [
@@ -141,7 +110,7 @@ class ChatControls extends StatelessWidget {
                   'Redo Last',
                   style: TextStyle(
                     fontSize: 12,
-                    color: MyColors.txt.withOpacity(0.8),
+                    color: MyColors.dark_txt.withOpacity(0.8),
                   ),
                 ),
               ),
@@ -152,7 +121,7 @@ class ChatControls extends StatelessWidget {
                   'Clear Chat',
                   style: TextStyle(
                     fontSize: 12,
-                    color: MyColors.txt.withOpacity(0.8),
+                    color: MyColors.dark_txt.withOpacity(0.8),
                   ),
                 ),
               ),

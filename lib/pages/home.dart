@@ -1,4 +1,5 @@
 import 'package:app/widgets/chat_controls.dart';
+import 'package:app/widgets/msg.dart';
 import 'package:app/widgets/new_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -75,21 +76,13 @@ class _HomeScreenState extends State<HomeScreen> {
     showDialog(
       context: context,
       builder: (context) => PickerDialog(
-        onSelection: (project, chat) {
-          globalStore.setCurrentProject(
-            id: project['id'],
-            name: project['name'],
+        onSelection: (chat) {
+          globalStore.addTab(id: chat["id"], name: chat["name"]);
+          globalStore.setCurrentChat(
+            id: chat['id'],
+            name: chat['name'],
           );
-
-          if (chat != null) {
-            globalStore.setCurrentChat(
-              id: chat['id'],
-              name: chat['name'],
-            );
-
-            _loadMessages(context, chat['id']);
-            _msgFocusNode.requestFocus();
-          }
+          _msgFocusNode.requestFocus();
         },
       ),
     );
@@ -110,6 +103,10 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final globalStore = Provider.of<GlobalStore>(context);
 
+    if (globalStore.currentChatId != null) {
+      _loadMessages(context, globalStore.currentChatId!);
+    }
+
     return Scaffold(
       body: globalStore.currentChatId != null
           ? Column(
@@ -128,9 +125,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             )
-          : const Center(
+          : Center(
               child: Text(
-                '⌘ + T',
+                '⌘ T',
                 textAlign: TextAlign.center,
               ),
             ),

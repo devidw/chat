@@ -48,6 +48,8 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
     final globalStore = Provider.of<GlobalStore>(context, listen: false);
     if (globalStore.currentChatId == null) return;
 
+    globalStore.setStatus(Status.busy);
+
     var userMsgId = await DATA.createMessage(
       role: MsgRole.user.name,
       content: content,
@@ -108,6 +110,8 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
         globalStore.messages.removeLast(); // Remove the empty bot message
       });
       return;
+    } finally {
+      globalStore.setStatus(Status.idle);
     }
 
     await DATA.createMessage(
@@ -119,51 +123,58 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
   }
 
   bool _handleKeyPress(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (HardwareKeyboard.instance.isMetaPressed &&
-          event.logicalKey == LogicalKeyboardKey.enter) {
-        if (widget.controller.text.trim().isNotEmpty) {
-          _onNewMsg(widget.controller.text);
-          widget.controller.clear();
-          return true;
-        }
-      }
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.enter &&
+        HardwareKeyboard.instance.isMetaPressed &&
+        _textFieldHasFocus) {
+      _onNewMsg(widget.controller.text);
+      widget.controller.clear();
+      return true;
     }
     return false;
   }
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxWidth = screenWidth < 700 ? screenWidth * 0.9 : 600.0;
+
     return Container(
-      margin: EdgeInsets.symmetric(vertical: 10),
-      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         border: Border(
           top: BorderSide(
             width: 1.5,
             color: _textFieldHasFocus
-                ? MyColors.txt.withValues(alpha: 0.5)
-                : MyColors.txt.withValues(alpha: 0.25),
+                ? MyColors.dark_txt.withValues(alpha: 0.5)
+                : MyColors.dark_txt.withValues(alpha: 0.25),
           ),
         ),
       ),
-      child: Row(
-        children: [
-          Expanded(
-            child: TextField(
-              controller: widget.controller,
-              focusNode: widget.focusNode,
-              minLines: 3,
-              maxLines: null,
-              decoration: InputDecoration(
-                border: InputBorder.none,
-                hintStyle: TextStyle(
-                  color: Colors.white54,
+      child: Center(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          margin: EdgeInsets.symmetric(vertical: 10),
+          padding: EdgeInsets.all(20),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: widget.controller,
+                  focusNode: widget.focusNode,
+                  minLines: 3,
+                  maxLines: null,
+                  decoration: InputDecoration(
+                    border: InputBorder.none,
+                    hintText: "Message",
+                    hintStyle: TextStyle(
+                        // color: Colors.,
+                        ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

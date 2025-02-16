@@ -1,8 +1,11 @@
+import "package:app/md_stylesheet.dart";
 import "package:app/styles.dart";
 import "package:app/widgets/highlight.dart";
 import "package:flutter/material.dart";
 import "package:app/types.dart";
 import "package:flutter_markdown/flutter_markdown.dart";
+import "package:flutter/services.dart";
+import "package:google_fonts/google_fonts.dart";
 
 class MsgWidget extends StatefulWidget {
   final Msg msg;
@@ -22,59 +25,73 @@ class _MsgWidgetState extends State<MsgWidget> {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxWidth = screenWidth < 700 ? screenWidth * 0.9 : 600.0;
 
-    return Row(
-      key: widget.msg.key,
-      mainAxisAlignment: widget.msg.role == MsgRole.user
-          ? MainAxisAlignment.end
-          : MainAxisAlignment.center,
-      children: [
-        Container(
-          constraints: BoxConstraints(
-            minWidth: widget.msg.role == MsgRole.user ? 0 : maxWidth,
-            maxWidth: maxWidth,
+    if (widget.msg.role == MsgRole.assistant) {
+      return Center(
+        child: Container(
+          width: maxWidth,
+          margin: EdgeInsets.only(top: 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              MarkdownBody(
+                data: widget.msg.content.isEmpty ? "…" : widget.msg.content,
+                selectable: true,
+                styleSheet: stylehseet,
+                builders: {
+                  "code": MyHighLightBuilder(),
+                },
+              ),
+              SizedBox(height: 8),
+              Container(
+                margin: EdgeInsets.only(
+                  left: 20,
+                  top: 10,
+                ),
+                child: IconButton(
+                  icon: Icon(Icons.copy_outlined, size: 16),
+                  onPressed: () {
+                    Clipboard.setData(ClipboardData(text: widget.msg.content));
+                  },
+                  padding: EdgeInsets.zero,
+                  constraints: BoxConstraints(),
+                  splashRadius: 16,
+                  color: MyColors.a.withOpacity(0.5),
+                ),
+              ),
+            ],
           ),
-          margin: EdgeInsets.all(10),
+        ),
+      );
+    }
+
+    return Center(
+      child: Container(
+        width: maxWidth,
+        alignment: Alignment.centerRight,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: maxWidth * 0.8),
+          margin: EdgeInsets.only(top: 40),
           padding: EdgeInsets.symmetric(
-            horizontal: 14,
+            horizontal: 20,
             vertical: 8,
           ),
           decoration: BoxDecoration(
+            color: MyColors.a.withOpacity(0.25),
             borderRadius: BorderRadius.circular(14),
-            border: widget.msg.role == MsgRole.user
-                ? Border.all(
-                    color: MyColors.a.withOpacity(0.25),
-                    style: BorderStyle.solid,
-                    strokeAlign: BorderSide.strokeAlignOutside,
-                  )
-                : null,
           ),
-          child: widget.msg.role == MsgRole.assistant
-              ? MarkdownBody(
-                  data: widget.msg.content.isEmpty ? "…" : widget.msg.content,
-                  selectable: true,
-                  styleSheet: MarkdownStyleSheet(
-                    p: TextStyle(
-                      height: 1.75,
-                      fontSize: 16,
-                    ),
-                    a: TextStyle(
-                      color: MyColors.a,
-                    ),
-                  ),
-                  builders: {
-                    "code": MyHighLightBuilder(),
-                  },
-                )
-              : SelectableText(
-                  widget.msg.content,
-                  style: TextStyle(
-                    height: 1.75,
-                    fontSize: 16,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-        )
-      ],
+          child: SelectableText(
+            widget.msg.content,
+            style: TextStyle(
+              height: 1.75,
+              fontSize: 16,
+              fontStyle: FontStyle.italic,
+              fontVariations: [
+                FontVariation("wght", 300),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
