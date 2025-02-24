@@ -201,31 +201,42 @@ class _PickerDialogState extends State<PickerDialog> {
     if (_isChildView && _selectedChildIndex >= 0 && _childChats.isNotEmpty) {
       final chat = _childChats[_selectedChildIndex];
       await DATA.deleteChat(id: chat['id']);
-      await _loadChildChats(_parentChats[_selectedParentIndex]['id']);
 
+      // Remove from global store first
       Provider.of<GlobalStore>(context, listen: false).removeTab(chat["id"]);
 
+      // Reload child chats and update selection
+      await _loadChildChats(_parentChats[_selectedParentIndex]['id']);
       setState(() {
-        _selectedChildIndex = _childChats.isEmpty ? -1 : 0;
+        _selectedChildIndex = _childChats.isEmpty
+            ? -1
+            : _selectedChildIndex >= _childChats.length
+                ? _childChats.length - 1
+                : _selectedChildIndex;
+        _showDeleteConfirm = false;
       });
     } else if (!_isChildView &&
         _selectedParentIndex >= 0 &&
         _parentChats.isNotEmpty) {
       final chat = _parentChats[_selectedParentIndex];
       await DATA.deleteChat(id: chat['id']);
-      await _loadParentChats();
 
+      // Remove from global store first
       Provider.of<GlobalStore>(context, listen: false).removeTab(chat["id"]);
 
+      // Reload parent chats and update selection
+      await _loadParentChats();
       setState(() {
         _isChildView = false;
-        _selectedParentIndex = _parentChats.isEmpty ? -1 : 0;
+        _selectedParentIndex = _parentChats.isEmpty
+            ? -1
+            : _selectedParentIndex >= _parentChats.length
+                ? _parentChats.length - 1
+                : _selectedParentIndex;
         _selectedChildIndex = -1;
+        _showDeleteConfirm = false;
       });
     }
-    setState(() {
-      _showDeleteConfirm = false;
-    });
   }
 
   void _handleParentSelection() {
@@ -247,6 +258,24 @@ class _PickerDialogState extends State<PickerDialog> {
 
   bool _handleKeyPress(KeyEvent event) {
     if (event is! KeyDownEvent) return false;
+
+    // Handle escape key first
+    if (event.logicalKey == LogicalKeyboardKey.escape) {
+      if (_showDeleteConfirm) {
+        setState(() {
+          _showDeleteConfirm = false;
+        });
+        return true;
+      }
+      if (_isRenaming) {
+        setState(() {
+          _isRenaming = false;
+        });
+        return true;
+      }
+      Navigator.of(context).pop();
+      return true;
+    }
 
     if (_showDeleteConfirm) {
       if (event.logicalKey == LogicalKeyboardKey.enter) {

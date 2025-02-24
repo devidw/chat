@@ -4,6 +4,7 @@ import "package:app/styles.dart";
 import "package:app/types.dart";
 import "package:app/widgets/error_snackbar.dart";
 import "package:flutter/material.dart";
+import "package:flutter/scheduler.dart";
 import "package:flutter/services.dart";
 import "package:provider/provider.dart";
 import "../global_store.dart";
@@ -26,14 +27,22 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
   final AIService _aiService = AIService();
   bool _textFieldHasFocus = false;
 
+  late GlobalStore globalStore;
+
   @override
   void initState() {
     super.initState();
+
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      globalStore = Provider.of<GlobalStore>(context, listen: false);
+    });
+
     widget.focusNode.addListener(() {
       setState(() {
         _textFieldHasFocus = widget.focusNode.hasFocus;
       });
     });
+
     ServicesBinding.instance.keyboard.addHandler(_handleKeyPress);
   }
 
@@ -45,7 +54,6 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
   }
 
   Future<void> _onNewMsg(String content) async {
-    final globalStore = Provider.of<GlobalStore>(context, listen: false);
     if (globalStore.currentChatId == null) return;
 
     globalStore.setStatus(Status.busy);
@@ -75,40 +83,33 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
       }
     });
 
-    String fullResponse = '';
+    var botMsg = Msg(
+      id: userMsgId + 1, // TODO: do better
+      role: MsgRole.assistant,
+      content: "",
+    );
+
+    var updater = globalStore.addMessage(botMsg);
 
     try {
       var stream = _aiService.generateText(
         hostUrl: globalStore.hostUrl,
-        apiKey: globalStore.apiKey,
+        apiKey: await globalStore.apiKey,
         model: globalStore.model,
         messages: globalStore.messages,
       );
 
-      var botMsg = Msg(
-        id: userMsgId + 1, // TODO: do better
-        role: MsgRole.assistant,
-        content: "",
-      );
-
-      var firstDone = false;
+      var all = "";
 
       await for (final chunk in stream) {
-        fullResponse += chunk;
-
-        if (!firstDone) {
-          firstDone = true;
-          globalStore.addMessage(botMsg);
-        }
-
-        globalStore.updateLastBotMsg(fullResponse);
+        all += chunk;
+        updater(all);
       }
     } catch (e) {
       showErrorSnackBar(
-          context, 'Failed to generate response: ${e.toString()}');
-      setState(() {
-        globalStore.messages.removeLast(); // Remove the empty bot message
-      });
+        context,
+        'Failed to generate response: ${e.toString()}',
+      );
       return;
     } finally {
       globalStore.setStatus(Status.idle);
@@ -116,7 +117,7 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
 
     await DATA.createMessage(
       role: MsgRole.assistant.name,
-      content: fullResponse,
+      content: botMsg.content,
       chatId: globalStore.currentChatId!,
       model: globalStore.model,
     );
@@ -162,7 +163,7 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
                   controller: widget.controller,
                   focusNode: widget.focusNode,
                   minLines: 3,
-                  maxLines: null,
+                  maxLines: 32,
                   decoration: InputDecoration(
                     border: InputBorder.none,
                     hintText: "Message",

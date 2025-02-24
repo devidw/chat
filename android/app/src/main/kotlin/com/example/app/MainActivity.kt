@@ -1,4 +1,4 @@
-package com.example.app
+package gdn.wolf.chat
 
 import io.flutter.embedding.android.FlutterActivity
 

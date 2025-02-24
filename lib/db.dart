@@ -1,13 +1,22 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class DATA {
   static late Database db;
-  static final String dbPath = Platform.environment['CHAT_DB_PATH'] ??
-      (throw Exception('CHAT_DB_PATH environment variable not set'));
+  static late String dbPath;
+  static bool _initialized = false;
 
-  static Future<void> init() async {
+  static Future<void> mbInit() async {
+    if (_initialized) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    dbPath = prefs.getString('db_path') ?? '';
+    if (dbPath.isEmpty) {
+      throw Exception('Database path not found in settings');
+    }
+
     DATA.db = await openDatabase(
       dbPath,
       version: 1,
@@ -33,6 +42,8 @@ class DATA {
           )''');
       },
     );
+
+    _initialized = true;
   }
 
   // **chat apis**

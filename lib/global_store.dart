@@ -1,7 +1,7 @@
-// global_store.dart
 import 'package:app/types.dart';
 import 'package:flutter/material.dart';
-import 'dart:io';
+import 'package:shared_preferences/shared_preferences.dart';
+import "package:collection/collection.dart";
 
 class ChatTab {
   final int id;
@@ -15,13 +15,6 @@ class GlobalStore extends ChangeNotifier {
   static final Map<String, Map<String, dynamic>> _hosts = {
     'OpenAI': {
       'url': 'https://api.openai.com/v1',
-      'apiKey': () {
-        final key = Platform.environment['OPENAI_API_KEY'];
-        if (key == null || key.isEmpty) {
-          throw Exception('OPENAI_API_KEY environment variable not found');
-        }
-        return key;
-      }(),
       'models': [
         "o1",
         "o1-mini",
@@ -32,13 +25,6 @@ class GlobalStore extends ChangeNotifier {
     },
     'Google': {
       'url': 'https://generativelanguage.googleapis.com/v1beta',
-      'apiKey': () {
-        final key = Platform.environment['GEMINI_API_KEY'];
-        if (key == null || key.isEmpty) {
-          throw Exception('GEMINI_API_KEY environment variable not found');
-        }
-        return key;
-      }(),
       'models': [
         "gemini-2.0-flash-lite-preview-02-05",
         "gemini-2.0-flash-001",
@@ -68,15 +54,20 @@ class GlobalStore extends ChangeNotifier {
   int? _currentChatId;
   String? _currentChatName;
   String _model = 'gemini-2.0-flash-001';
-  List<Msg> messages = [];
+  List<Msg> _messages = [];
   Status _status = Status.idle;
   List<ChatTab> tabs = [];
+
+  // Cache for API keys
+  String? _openaiApiKey;
+  String? _geminiApiKey;
 
   // Getters
   int? get currentChatId => _currentChatId;
   String? get currentChatName => _currentChatName;
   String get model => _model;
   Status get status => _status;
+  List<Msg> get messages => _messages;
 
   // Get the host information based on the selected model
   String get hostUrl {
@@ -88,10 +79,28 @@ class GlobalStore extends ChangeNotifier {
     throw Exception('No host found for model $_model');
   }
 
-  String get apiKey {
+  Future<String> get apiKey async {
     for (var host in _hosts.entries) {
       if (host.value['models'].contains(_model)) {
-        return host.value['apiKey'];
+        if (host.key == 'OpenAI') {
+          if (_openaiApiKey == null) {
+            final prefs = await SharedPreferences.getInstance();
+            _openaiApiKey = prefs.getString('openai_api_key');
+            if (_openaiApiKey == null || _openaiApiKey!.isEmpty) {
+              throw Exception('OpenAI API key not found in settings');
+            }
+          }
+          return _openaiApiKey!;
+        } else if (host.key == 'Google') {
+          if (_geminiApiKey == null) {
+            final prefs = await SharedPreferences.getInstance();
+            _geminiApiKey = prefs.getString('gemini_api_key');
+            if (_geminiApiKey == null || _geminiApiKey!.isEmpty) {
+              throw Exception('Gemini API key not found in settings');
+            }
+          }
+          return _geminiApiKey!;
+        }
       }
     }
     throw Exception('No API key found for model $_model');
@@ -133,26 +142,24 @@ class GlobalStore extends ChangeNotifier {
     }
   }
 
-  void addMessage(Msg message) {
-    messages.add(message);
-    notifyListeners();
-  }
-
   void clearMessages() {
-    messages.clear();
+    _messages.clear();
     notifyListeners();
   }
 
   void setMessages(List<Msg> newMessages) {
-    messages = newMessages;
+    _messages = newMessages;
     notifyListeners();
   }
 
-  void updateLastBotMsg(String content) {
-    if (messages.isNotEmpty && messages.last.role == MsgRole.assistant) {
-      messages.last.content = content;
+  addMessage(Msg msg) {
+    _messages.add(msg);
+    notifyListeners();
+
+    return (String content) {
+      msg.content = content;
       notifyListeners();
-    }
+    };
   }
 
   void addTab({required int id, required String name}) {

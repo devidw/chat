@@ -1,5 +1,4 @@
 import 'package:app/widgets/chat_controls.dart';
-import 'package:app/widgets/msg.dart';
 import 'package:app/widgets/new_msg.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -11,20 +10,22 @@ import '../types.dart';
 import '../db.dart';
 import '../widgets/nav.dart';
 
-class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+class HomePage extends StatefulWidget {
+  const HomePage({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  State<HomePage> createState() => _HomePageState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomePageState extends State<HomePage> {
   final FocusNode _msgFocusNode = FocusNode();
   final TextEditingController _msgController = TextEditingController();
+  bool _isPickerVisible = false;
 
   @override
   void initState() {
     super.initState();
+    DATA.mbInit();
     ServicesBinding.instance.keyboard.addHandler(_handleKeyPress);
   }
 
@@ -72,9 +73,17 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showPicker(BuildContext context) {
+    if (_isPickerVisible) {
+      Navigator.of(context).pop();
+      _isPickerVisible = false;
+      return;
+    }
+
     final globalStore = Provider.of<GlobalStore>(context, listen: false);
+    _isPickerVisible = true;
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (context) => PickerDialog(
         onSelection: (chat) {
           globalStore.addTab(id: chat["id"], name: chat["name"]);
@@ -85,15 +94,25 @@ class _HomeScreenState extends State<HomeScreen> {
           _msgFocusNode.requestFocus();
         },
       ),
-    );
+    ).then((_) {
+      _isPickerVisible = false;
+    });
+  }
+
+  void _openSettings() {
+    Navigator.pushNamed(context, '/settings');
   }
 
   bool _handleKeyPress(KeyEvent event) {
     if (event is KeyDownEvent) {
-      if (event.logicalKey == LogicalKeyboardKey.keyT &&
-          HardwareKeyboard.instance.isMetaPressed) {
-        _showPicker(context);
-        return true;
+      if (HardwareKeyboard.instance.isMetaPressed) {
+        if (event.logicalKey == LogicalKeyboardKey.keyT) {
+          _showPicker(context);
+          return true;
+        } else if (event.logicalKey == LogicalKeyboardKey.semicolon) {
+          _openSettings();
+          return true;
+        }
       }
     }
     return false;
