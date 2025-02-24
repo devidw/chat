@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../db.dart';
 
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key});
@@ -13,6 +14,8 @@ class _SettingsPageState extends State<SettingsPage> {
   final _dbPathController = TextEditingController();
   final _oaiKeyController = TextEditingController();
   final _geminiKeyController = TextEditingController();
+  bool _isDbConnected = false;
+  bool _isCheckingDb = false;
 
   static const String _dbPathKey = 'db_path';
   static const String _oaiKey = 'openai_api_key';
@@ -31,6 +34,31 @@ class _SettingsPageState extends State<SettingsPage> {
       _oaiKeyController.text = prefs.getString(_oaiKey) ?? '';
       _geminiKeyController.text = prefs.getString(_geminiKey) ?? '';
     });
+  }
+
+  Future<void> _checkDbConnection() async {
+    setState(() {
+      _isCheckingDb = true;
+      _isDbConnected = false;
+    });
+
+    try {
+      await DATA.mbInit();
+      setState(() {
+        _isDbConnected = true;
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Database connection failed: ${e.toString()}')),
+        );
+      }
+    } finally {
+      setState(() {
+        _isCheckingDb = false;
+      });
+    }
   }
 
   Future<void> _saveSettings() async {
@@ -68,12 +96,32 @@ class _SettingsPageState extends State<SettingsPage> {
           key: _formKey,
           child: Column(
             children: [
-              TextFormField(
-                controller: _dbPathController,
-                decoration: const InputDecoration(
-                  labelText: 'Database Path',
-                  hintText: 'Enter path to SQLite database file',
-                ),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextFormField(
+                      controller: _dbPathController,
+                      decoration: const InputDecoration(
+                        labelText: 'Database Path',
+                        hintText: 'Enter path to SQLite database file',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _isCheckingDb ? null : _checkDbConnection,
+                    icon: _isCheckingDb
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            _isDbConnected ? Icons.check_circle : Icons.sync,
+                            color: _isDbConnected ? Colors.green : null,
+                          ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               TextFormField(

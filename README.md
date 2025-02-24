@@ -1,18 +1,12 @@
 # LLM Chat
 
-## env vars
-
-```bash
-CHAT_DB_PATH="/users/devidw/desktop/chat.db"
-
-OPENAI_API_KEY=""
-GEMINI_API_KEY=""
-```
+how i talk to llms
 
 ## Keyboard Shortcuts
 
 | Shortcut | Action                 |
 | -------- | ---------------------- |
+| ⌘ ;      | Open Settings          |
 | ⌘ T      | Open Chat Browser      |
 | ⌘ W      | Close Current Chat Tab |
 
