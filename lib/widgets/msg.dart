@@ -9,7 +9,7 @@ import "package:app/db.dart";
 import "package:app/global_store.dart";
 import "package:provider/provider.dart";
 
-class MsgWidget extends StatefulWidget {
+class MsgWidget extends StatelessWidget {
   final Msg msg;
 
   const MsgWidget({
@@ -17,23 +17,21 @@ class MsgWidget extends StatefulWidget {
     required this.msg,
   });
 
-  @override
-  State<MsgWidget> createState() => _MsgWidgetState();
-}
-
-class _MsgWidgetState extends State<MsgWidget> {
-  Future<void> _handleDelete() async {
+  Future<void> _handleDelete(BuildContext context) async {
     final store = Provider.of<GlobalStore>(context, listen: false);
-    await DATA.deleteMessage(id: widget.msg.id);
-    store.setMessages(
-        store.messages.where((m) => m.id != widget.msg.id).toList());
+    await DATA.deleteMessage(id: msg.id);
+    store.setMessages(store.messages.where((m) => m.id != msg.id).toList());
   }
 
   void _handleCopy() {
-    Clipboard.setData(ClipboardData(text: widget.msg.content));
+    Clipboard.setData(ClipboardData(text: msg.content));
   }
 
-  Widget _buildActionButtons() {
+  Widget _buildActionButtons(BuildContext context) {
+    // if (msg.role == MsgRole.assistant) {
+    //   print("${DateTime.now()} ${msg.id} ${msg.content}");
+    // }
+
     return Row(
       children: [
         IconButton(
@@ -47,7 +45,7 @@ class _MsgWidgetState extends State<MsgWidget> {
         SizedBox(width: 8),
         IconButton(
           icon: Icon(Icons.delete_outline, size: 16),
-          onPressed: _handleDelete,
+          onPressed: () => _handleDelete(context),
           padding: EdgeInsets.zero,
           constraints: BoxConstraints(),
           splashRadius: 16,
@@ -62,7 +60,7 @@ class _MsgWidgetState extends State<MsgWidget> {
     final screenWidth = MediaQuery.of(context).size.width;
     final maxWidth = screenWidth < 700 ? screenWidth * 0.9 : 600.0;
 
-    if (widget.msg.role == MsgRole.assistant) {
+    if (msg.role == MsgRole.assistant) {
       return Center(
         child: Container(
           width: maxWidth,
@@ -71,7 +69,7 @@ class _MsgWidgetState extends State<MsgWidget> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               MarkdownBody(
-                data: widget.msg.content.isEmpty ? "…" : widget.msg.content,
+                data: msg.content.isEmpty ? "…" : msg.content,
                 selectable: true,
                 styleSheet: stylehseet,
                 builders: {
@@ -84,7 +82,7 @@ class _MsgWidgetState extends State<MsgWidget> {
                   left: 20,
                   top: 10,
                 ),
-                child: _buildActionButtons(),
+                child: _buildActionButtons(context),
               ),
             ],
           ),
@@ -93,38 +91,44 @@ class _MsgWidgetState extends State<MsgWidget> {
     }
 
     return Center(
-      child: Container(
+      child: SizedBox(
         width: maxWidth,
-        alignment: Alignment.centerRight,
-        child: Container(
-          constraints: BoxConstraints(maxWidth: maxWidth * 0.8),
-          margin: EdgeInsets.only(top: 40),
-          padding: EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 8,
-          ),
-          decoration: BoxDecoration(
-            color: MyColors.a.withOpacity(0.25),
-            borderRadius: BorderRadius.circular(14),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              SelectableText(
-                widget.msg.content,
-                style: TextStyle(
-                  height: 1.75,
-                  fontSize: 16,
-                  fontStyle: FontStyle.italic,
-                  fontVariations: [
-                    FontVariation("wght", 300),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.end,
+          children: [
+            IntrinsicWidth(
+              child: Container(
+                constraints: BoxConstraints(maxWidth: maxWidth * 0.8),
+                margin: EdgeInsets.only(top: 40),
+                padding: EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: MyColors.a.withOpacity(0.25),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SelectableText(
+                      msg.content,
+                      style: TextStyle(
+                        height: 1.75,
+                        fontSize: 16,
+                        fontStyle: FontStyle.italic,
+                        fontVariations: [
+                          FontVariation("wght", 300),
+                        ],
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    _buildActionButtons(context),
                   ],
                 ),
               ),
-              SizedBox(height: 4),
-              _buildActionButtons(),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

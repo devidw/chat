@@ -99,11 +99,8 @@ class _NewMsgWidgetState extends State<NewMsgWidget> {
         messages: globalStore.messages,
       );
 
-      var all = "";
-
       await for (final chunk in stream) {
-        all += chunk;
-        updater(all);
+        updater(chunk);
       }
     } catch (e) {
       showErrorSnackBar(

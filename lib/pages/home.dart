@@ -21,12 +21,27 @@ class _HomePageState extends State<HomePage> {
   final FocusNode _msgFocusNode = FocusNode();
   final TextEditingController _msgController = TextEditingController();
   bool _isPickerVisible = false;
+  int? _prevChatId; // Track the previous chat ID
 
   @override
   void initState() {
     super.initState();
     DATA.mbInit();
     ServicesBinding.instance.keyboard.addHandler(_handleKeyPress);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the current chat id from your GlobalStore.
+    final globalStore = Provider.of<GlobalStore>(context);
+    final currentChatId = globalStore.currentChatId;
+
+    // Only load messages if the chat id changed.
+    if (currentChatId != null && currentChatId != _prevChatId) {
+      _prevChatId = currentChatId;
+      _loadMessages(context, currentChatId);
+    }
   }
 
   @override
@@ -45,7 +60,7 @@ class _HomePageState extends State<HomePage> {
               id: m["id"],
               role: m['role'] == 'user' ? MsgRole.user : MsgRole.assistant,
               content: m['content'],
-              key: GlobalKey(),
+              key: GlobalKey(), // Ideally, use a ValueKey if possible
             ))
         .toList();
     globalStore.setMessages(mappedMessages);
@@ -70,6 +85,21 @@ class _HomePageState extends State<HomePage> {
         }
       });
     }
+  }
+
+  bool _handleKeyPress(KeyEvent event) {
+    if (event is KeyDownEvent) {
+      if (HardwareKeyboard.instance.isMetaPressed) {
+        if (event.logicalKey == LogicalKeyboardKey.keyT) {
+          _showPicker(context);
+          return true;
+        } else if (event.logicalKey == LogicalKeyboardKey.semicolon) {
+          _openSettings();
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   void _showPicker(BuildContext context) {
@@ -103,37 +133,18 @@ class _HomePageState extends State<HomePage> {
     Navigator.pushNamed(context, '/settings');
   }
 
-  bool _handleKeyPress(KeyEvent event) {
-    if (event is KeyDownEvent) {
-      if (HardwareKeyboard.instance.isMetaPressed) {
-        if (event.logicalKey == LogicalKeyboardKey.keyT) {
-          _showPicker(context);
-          return true;
-        } else if (event.logicalKey == LogicalKeyboardKey.semicolon) {
-          _openSettings();
-          return true;
-        }
-      }
-    }
-    return false;
-  }
-
   @override
   Widget build(BuildContext context) {
     final globalStore = Provider.of<GlobalStore>(context);
 
-    if (globalStore.currentChatId != null) {
-      _loadMessages(context, globalStore.currentChatId!);
-    }
+    // print("${DateTime.now()} home rerender");
 
     return Scaffold(
       body: globalStore.currentChatId != null
           ? Column(
               children: [
                 const Nav(),
-                const Expanded(
-                  child: ChatHistory(),
-                ),
+                const Expanded(child: ChatHistory()),
                 ChatControls(
                   focusNode: _msgFocusNode,
                   controller: _msgController,

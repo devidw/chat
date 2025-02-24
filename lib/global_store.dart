@@ -152,12 +152,13 @@ class GlobalStore extends ChangeNotifier {
     notifyListeners();
   }
 
-  addMessage(Msg msg) {
+  void Function(String a) addMessage(Msg msg) {
     _messages.add(msg);
     notifyListeners();
 
-    return (String content) {
-      msg.content = content;
+    return (String chunk) {
+      // print(chunk);
+      msg.content += chunk;
       notifyListeners();
     };
   }

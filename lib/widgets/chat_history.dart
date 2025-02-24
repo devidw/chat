@@ -23,6 +23,8 @@ class _ChatHistoryState extends State<ChatHistory> {
   Widget build(BuildContext context) {
     final globalStore = Provider.of<GlobalStore>(context);
 
+    // print("${DateTime.now()} chat history rerender");
+
     return Column(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
