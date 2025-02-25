@@ -49,8 +49,7 @@ class _PickerDialogState extends State<PickerDialog> {
 
     if (currentChatId != null) {
       // Find if current chat is a parent
-      final parentIndex =
-          parentChats.indexWhere((p) => p['id'] == currentChatId);
+      final parentIndex = parentChats.indexWhere((p) => p['id'] == currentChatId);
 
       if (parentIndex >= 0) {
         // Current chat is a parent
@@ -61,10 +60,8 @@ class _PickerDialogState extends State<PickerDialog> {
       } else {
         // Current chat might be a child, need to find its parent
         for (var i = 0; i < parentChats.length; i++) {
-          final childChats =
-              await DATA.listChats(parentId: parentChats[i]['id']);
-          final childIndex =
-              childChats.indexWhere((c) => c['id'] == currentChatId);
+          final childChats = await DATA.listChats(parentId: parentChats[i]['id']);
+          final childIndex = childChats.indexWhere((c) => c['id'] == currentChatId);
 
           if (childIndex >= 0) {
             setState(() {
@@ -115,8 +112,7 @@ class _PickerDialogState extends State<PickerDialog> {
   Future<void> _createNewParentChat() async {
     final chatId = await DATA.createChat();
     await _loadParentChats();
-    final newChatIndex =
-        _parentChats.indexWhere((chat) => chat['id'] == chatId);
+    final newChatIndex = _parentChats.indexWhere((chat) => chat['id'] == chatId);
     setState(() {
       _selectedParentIndex = newChatIndex;
       _isRenaming = true;
@@ -151,9 +147,7 @@ class _PickerDialogState extends State<PickerDialog> {
         _isRenaming = true;
       });
       _renameFocusNode.requestFocus();
-    } else if (!_isChildView &&
-        _selectedParentIndex >= 0 &&
-        _parentChats.isNotEmpty) {
+    } else if (!_isChildView && _selectedParentIndex >= 0 && _parentChats.isNotEmpty) {
       final chat = _parentChats[_selectedParentIndex];
       _renameController.text = chat['name'];
       setState(() {
@@ -180,9 +174,7 @@ class _PickerDialogState extends State<PickerDialog> {
       setState(() {
         _selectedChildIndex = currentChildIndex;
       });
-    } else if (!_isChildView &&
-        _selectedParentIndex >= 0 &&
-        _parentChats.isNotEmpty) {
+    } else if (!_isChildView && _selectedParentIndex >= 0 && _parentChats.isNotEmpty) {
       final chat = _parentChats[_selectedParentIndex];
       await DATA.updateChat(id: chat['id'], name: _renameController.text);
       final currentIndex = _selectedParentIndex;
@@ -215,9 +207,7 @@ class _PickerDialogState extends State<PickerDialog> {
                 : _selectedChildIndex;
         _showDeleteConfirm = false;
       });
-    } else if (!_isChildView &&
-        _selectedParentIndex >= 0 &&
-        _parentChats.isNotEmpty) {
+    } else if (!_isChildView && _selectedParentIndex >= 0 && _parentChats.isNotEmpty) {
       final chat = _parentChats[_selectedParentIndex];
       await DATA.deleteChat(id: chat['id']);
 
@@ -302,22 +292,19 @@ class _PickerDialogState extends State<PickerDialog> {
       return false;
     }
 
-    if (HardwareKeyboard.instance.isMetaPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyR) {
+    if (HardwareKeyboard.instance.isMetaPressed && event.logicalKey == LogicalKeyboardKey.keyR) {
       _handleRename();
       return true;
     }
 
-    if (HardwareKeyboard.instance.isMetaPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyD) {
+    if (HardwareKeyboard.instance.isMetaPressed && event.logicalKey == LogicalKeyboardKey.keyD) {
       setState(() {
         _showDeleteConfirm = true;
       });
       return true;
     }
 
-    if (HardwareKeyboard.instance.isMetaPressed &&
-        event.logicalKey == LogicalKeyboardKey.keyA) {
+    if (HardwareKeyboard.instance.isMetaPressed && event.logicalKey == LogicalKeyboardKey.keyA) {
       if (_isChildView) {
         _createNewChildChat();
       } else {
@@ -334,16 +321,13 @@ class _PickerDialogState extends State<PickerDialog> {
       case LogicalKeyboardKey.arrowDown:
         setState(() {
           if (_isChildView && _childChats.isNotEmpty) {
-            _selectedChildIndex =
-                (_selectedChildIndex + 1) % _childChats.length;
+            _selectedChildIndex = (_selectedChildIndex + 1) % _childChats.length;
           } else if (!_isChildView && _parentChats.isNotEmpty) {
-            _selectedParentIndex =
-                (_selectedParentIndex + 1) % _parentChats.length;
+            _selectedParentIndex = (_selectedParentIndex + 1) % _parentChats.length;
             _selectedChildIndex = -1;
             _childChats = []; // Clear chats when changing parent
             if (_isChildView) {
-              _loadChildChats(_parentChats[_selectedParentIndex]
-                  ['id']); // Reload chats if in child view
+              _loadChildChats(_parentChats[_selectedParentIndex]['id']); // Reload chats if in child view
             }
           }
         });
@@ -352,18 +336,13 @@ class _PickerDialogState extends State<PickerDialog> {
       case LogicalKeyboardKey.arrowUp:
         setState(() {
           if (_isChildView && _childChats.isNotEmpty) {
-            _selectedChildIndex =
-                (_selectedChildIndex - 1 + _childChats.length) %
-                    _childChats.length;
+            _selectedChildIndex = (_selectedChildIndex - 1 + _childChats.length) % _childChats.length;
           } else if (!_isChildView && _parentChats.isNotEmpty) {
-            _selectedParentIndex =
-                (_selectedParentIndex - 1 + _parentChats.length) %
-                    _parentChats.length;
+            _selectedParentIndex = (_selectedParentIndex - 1 + _parentChats.length) % _parentChats.length;
             _selectedChildIndex = -1;
             _childChats = []; // Clear chats when changing parent
             if (_isChildView) {
-              _loadChildChats(_parentChats[_selectedParentIndex]
-                  ['id']); // Reload chats if in child view
+              _loadChildChats(_parentChats[_selectedParentIndex]['id']); // Reload chats if in child view
             }
           }
         });
@@ -406,9 +385,9 @@ class _PickerDialogState extends State<PickerDialog> {
         ),
         constraints: BoxConstraints(
           minWidth: 300,
-          maxWidth: 600,
+          maxWidth: 500,
           minHeight: 200,
-          maxHeight: 800,
+          maxHeight: 400,
         ),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -422,23 +401,15 @@ class _PickerDialogState extends State<PickerDialog> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Debug Info:',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(
-                          'View: ${_isChildView ? "Child Chats" : "Parent Chats"}'),
-                      if (!_isChildView &&
-                          _selectedParentIndex >= 0 &&
-                          _parentChats.isNotEmpty)
+                      Text('Debug Info:', style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text('View: ${_isChildView ? "Child Chats" : "Parent Chats"}'),
+                      if (!_isChildView && _selectedParentIndex >= 0 && _parentChats.isNotEmpty)
                         Text(
                             'Selected Parent Chat: ${_parentChats[_selectedParentIndex]['name']} (id: ${_parentChats[_selectedParentIndex]['id']})'),
-                      if (_isChildView &&
-                          _selectedParentIndex >= 0 &&
-                          _parentChats.isNotEmpty)
+                      if (_isChildView && _selectedParentIndex >= 0 && _parentChats.isNotEmpty)
                         Text(
                             'Selected Parent Chat: ${_parentChats[_selectedParentIndex]['name']} (id: ${_parentChats[_selectedParentIndex]['id']})'),
-                      if (_isChildView &&
-                          _selectedChildIndex >= 0 &&
-                          _childChats.isNotEmpty)
+                      if (_isChildView && _selectedChildIndex >= 0 && _childChats.isNotEmpty)
                         Text(
                             'Selected Child Chat: ${_childChats[_selectedChildIndex]['name']} (id: ${_childChats[_selectedChildIndex]['id']})'),
                     ],
@@ -453,52 +424,38 @@ class _PickerDialogState extends State<PickerDialog> {
                         children: [
                           Expanded(
                             child: _parentChats.isEmpty
-                                ? Center(child: Text('No chats available'))
+                                ? Center(child: Text('⌘ A'))
                                 : ListView.builder(
                                     itemCount: _parentChats.length,
                                     itemBuilder: (context, index) {
                                       final chat = _parentChats[index];
-                                      final isSelected =
-                                          index == _selectedParentIndex;
+                                      final isSelected = index == _selectedParentIndex;
                                       return ListTile(
                                         title: Row(
                                           children: [
                                             Expanded(
-                                              child: isSelected &&
-                                                      _isRenaming &&
-                                                      !_isChildView
+                                              child: isSelected && _isRenaming && !_isChildView
                                                   ? TextField(
-                                                      controller:
-                                                          _renameController,
-                                                      focusNode:
-                                                          _renameFocusNode,
-                                                      decoration:
-                                                          InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        contentPadding:
-                                                            EdgeInsets.zero,
+                                                      controller: _renameController,
+                                                      focusNode: _renameFocusNode,
+                                                      decoration: InputDecoration(
+                                                        border: InputBorder.none,
+                                                        contentPadding: EdgeInsets.zero,
+                                                        isDense: true,
                                                       ),
                                                       style: TextStyle(
-                                                        color:
-                                                            MyColors.dark_txt,
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                                        color: MyColors.dark_txt,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
                                                       ),
-                                                      onSubmitted: (_) =>
-                                                          _saveRename(),
-                                                      onEditingComplete:
-                                                          _saveRename,
+                                                      onSubmitted: (_) => _saveRename(),
+                                                      onEditingComplete: _saveRename,
                                                     )
                                                   : Text(
                                                       chat['name'],
                                                       style: TextStyle(
-                                                        fontWeight: isSelected
-                                                            ? FontWeight.bold
-                                                            : FontWeight.normal,
-                                                        color: isSelected &&
-                                                                _showDeleteConfirm &&
-                                                                !_isChildView
+                                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                        color: isSelected && _showDeleteConfirm && !_isChildView
                                                             ? Colors.red
                                                             : MyColors.dark_txt,
                                                       ),
@@ -508,17 +465,13 @@ class _PickerDialogState extends State<PickerDialog> {
                                         ),
                                         tileColor: isSelected
                                             ? (_isChildView
-                                                ? MyColors.a
-                                                    .withValues(alpha: 0.1)
+                                                ? MyColors.a.withValues(alpha: 0.1)
                                                 : _showDeleteConfirm
-                                                    ? Colors.red
-                                                        .withOpacity(0.2)
-                                                    : MyColors.a
-                                                        .withValues(alpha: 0.3))
+                                                    ? Colors.red.withOpacity(0.2)
+                                                    : MyColors.a.withValues(alpha: 0.3))
                                             : null,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         dense: true,
                                       );
@@ -538,11 +491,7 @@ class _PickerDialogState extends State<PickerDialog> {
                                     child: Text(
                                       _isChildView ? '⌘ A' : '⌘ →',
                                       style: TextStyle(
-                                        color: Theme.of(context)
-                                            .textTheme
-                                            .bodyMedium
-                                            ?.color
-                                            ?.withValues(alpha: 0.5),
+                                        color: Theme.of(context).textTheme.bodyMedium?.color?.withValues(alpha: 0.5),
                                       ),
                                     ),
                                   )
@@ -550,47 +499,33 @@ class _PickerDialogState extends State<PickerDialog> {
                                     itemCount: _childChats.length,
                                     itemBuilder: (context, index) {
                                       final chat = _childChats[index];
-                                      final isSelected =
-                                          index == _selectedChildIndex;
+                                      final isSelected = index == _selectedChildIndex;
                                       return ListTile(
                                         title: Row(
                                           children: [
                                             Expanded(
-                                              child: isSelected &&
-                                                      _isRenaming &&
-                                                      _isChildView
+                                              child: isSelected && _isRenaming && _isChildView
                                                   ? TextField(
-                                                      controller:
-                                                          _renameController,
-                                                      focusNode:
-                                                          _renameFocusNode,
-                                                      decoration:
-                                                          InputDecoration(
-                                                        border:
-                                                            InputBorder.none,
-                                                        contentPadding:
-                                                            EdgeInsets.zero,
+                                                      controller: _renameController,
+                                                      focusNode: _renameFocusNode,
+                                                      decoration: InputDecoration(
+                                                        border: InputBorder.none,
+                                                        contentPadding: EdgeInsets.zero,
+                                                        isDense: true,
                                                       ),
                                                       style: TextStyle(
-                                                        color:
-                                                            MyColors.dark_txt,
-                                                        fontWeight:
-                                                            FontWeight.bold,
+                                                        color: MyColors.dark_txt,
+                                                        fontWeight: FontWeight.bold,
+                                                        fontSize: 13,
                                                       ),
-                                                      onSubmitted: (_) =>
-                                                          _saveRename(),
-                                                      onEditingComplete:
-                                                          _saveRename,
+                                                      onSubmitted: (_) => _saveRename(),
+                                                      onEditingComplete: _saveRename,
                                                     )
                                                   : Text(
                                                       chat['name'],
                                                       style: TextStyle(
-                                                        fontWeight: isSelected
-                                                            ? FontWeight.bold
-                                                            : FontWeight.normal,
-                                                        color: isSelected &&
-                                                                _showDeleteConfirm &&
-                                                                _isChildView
+                                                        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                                        color: isSelected && _showDeleteConfirm && _isChildView
                                                             ? Colors.red
                                                             : MyColors.dark_txt,
                                                       ),
@@ -601,12 +536,10 @@ class _PickerDialogState extends State<PickerDialog> {
                                         tileColor: isSelected
                                             ? _showDeleteConfirm
                                                 ? Colors.red.withOpacity(0.2)
-                                                : MyColors.a
-                                                    .withValues(alpha: 0.3)
+                                                : MyColors.a.withValues(alpha: 0.3)
                                             : null,
                                         shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
+                                          borderRadius: BorderRadius.circular(8),
                                         ),
                                         dense: true,
                                       );
